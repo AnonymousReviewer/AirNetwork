@@ -4,6 +4,7 @@ library(sp)
 library(reshape2)
 library(igraph)
 library(Matrix)
+library(ggplot2)
 
 # data from https://www.bts.gov/browse-statistical-products-and-data/bts-publications/data-bank-28dm-t-100-domestic-market-data-us
 raw <- as.tbl(read.csv('data/dd.db28dm.201701.201712.asc',sep='|',header=F,stringsAsFactors = F))
@@ -91,11 +92,6 @@ E(g)$weight = E(g)$distance
 # fixed variables for gbc
 dists = distances(g)
 nodepaths = lapply(V(g),function(v){shortest_paths(g,from=v,to=V(g))$vpath})
-flows = matrix(rep(nodesize,length(nodesize)),nrow=length(nodesize),byrow = T) * matrix(rep(nodesize,length(nodesize)),nrow=length(nodesize),byrow = F) / dists^beta
-flows[is.infinite(flows)]=0
-# sum(flows[flows>mean(flows)])/sum(flows) = 0.94 : taking larger than the average makes 94% of total flow -> add filter
-meanflow = mean(c(flows))
-
 
 #'
 #' nodesize should be named
@@ -103,6 +99,11 @@ meanflow = mean(c(flows))
 computegbc <- function(beta,nodesize,sample=T){
   gbc = rep(0,length(nodesize));names(gbc)<-names(nodesize)
   egbc = rep(0,length(E(g)));names(egbc)<-paste0(head_of(g,E(g))$name,tail_of(g,E(g))$name)
+  flows = matrix(rep(nodesize,length(nodesize)),nrow=length(nodesize),byrow = T) * matrix(rep(nodesize,length(nodesize)),nrow=length(nodesize),byrow = F) / dists^beta
+  flows[is.infinite(flows)]=0
+  # sum(flows[flows>mean(flows)])/sum(flows) = 0.94 : taking larger than the average makes 94% of total flow -> add filter
+  meanflow = mean(c(flows))
+  
   for(o in names(nodepaths)){
     show(o)
     for(d in 1:length(nodepaths[[o]])){
@@ -160,7 +161,7 @@ for(beta in seq(0,2,0.2)){
 
 res = data.frame(betas,types,corrs,corrmins,corrmaxs)
 
-g=ggplot(res,aes(x=beta,y=corrs,color=type))
+g=ggplot(res,aes(x=betas,y=corrs,color=types))
 g+geom_point()+geom_line()+geom_errorbar(aes(ymin=corrmins,ymax=corrmaxs))+xlab(expression(beta))+
   ylab(expression(rho))
 ggsave('correlations.png',width=20,height=15,units='cm')
